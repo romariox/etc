@@ -1,0 +1,181 @@
+{
+  "schema_version": 1,
+  "name": "Vacina Fortaleza",
+  "description": "Quando a pessoa que você procura for agendada e aparecer na lista, o Huginn vai capturar a informação e repassar para o bot Telegram. Verifique se seu servidor pode acessar todas as url neste cenário. 'Em Baixar lista para vacina' use ou o 'nome' ou o 'cpf'. Veja a documentação de Huginn sobre como usar o TelegramAgent e como subir seu próprio bot Telegram.",
+  "source_url": false,
+  "guid": "d78f358c02c6d166256c47c3fe29a65b",
+  "tag_fg_color": "#ffffff",
+  "tag_bg_color": "#5bc0de",
+  "icon": "bullhorn",
+  "exported_at": "2021-08-16T20:46:32Z",
+  "agents": [
+    {
+      "type": "Agents::PostAgent",
+      "name": "Receber cookie e token",
+      "disabled": false,
+      "guid": "262275ea68ded59fe786d6946fe1cefd",
+      "options": {
+        "post_url": "https://vacinacao.sms.fortaleza.ce.gov.br/login",
+        "expected_receive_period_in_days": "1",
+        "content_type": "form",
+        "method": "get",
+        "payload": {
+        },
+        "headers": {
+          "Referer": "https://coronavirus.fortaleza.ce.gov.br/lista-agendados-vacinacao.html",
+          "Origin": "https://coronavirus.fortaleza.ce.gov.br/lista-agendados-vacinacao.html"
+        },
+        "emit_events": "true",
+        "no_merge": "false",
+        "output_mode": "merge",
+        "disable_redirect_follow": "true"
+      },
+      "schedule": "every_5h",
+      "keep_events_for": 0,
+      "propagate_immediately": false
+    },
+    {
+      "type": "Agents::PostAgent",
+      "name": "Baixar lista para vacina",
+      "disabled": false,
+      "guid": "28e3c4311ac20d569a24600f7aac757f",
+      "options": {
+        "post_url": "https://vacinacao.sms.fortaleza.ce.gov.br/pesquisa/grid",
+        "expected_receive_period_in_days": "1",
+        "content_type": "form",
+        "method": "post",
+        "payload": {
+          "tipo_pesquisa": "agendados",
+          "nome": "OU O SEU_NOME E DEIXA CPF VAZIO/REMOVIDO",
+          "cpf": "OU O SEU CPF E DEIXA NOME VAZIO/REMOVIDO",
+          "activePage": "1",
+          "_token": "{{token}}"
+        },
+        "headers": {
+          "Origin": "https://vacinacao.sms.fortaleza.ce.gov.br",
+          "Referer": "https://vacinacao.sms.fortaleza.ce.gov.br/pesquisa/agendados",
+          "Cookie": "{{cookie}}"
+        },
+        "emit_events": "true",
+        "no_merge": "false",
+        "output_mode": "merge",
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73"
+      },
+      "schedule": "never",
+      "keep_events_for": 0,
+      "propagate_immediately": true
+    },
+    {
+      "type": "Agents::WebsiteAgent",
+      "name": "Tratar lista",
+      "disabled": false,
+      "guid": "8bc5d42d10e76dbbcf79f139e6e01dbc",
+      "options": {
+        "expected_update_period_in_days": "2",
+        "data_from_event": "{{ body }}",
+        "type": "json",
+        "mode": "on_change",
+        "extract": {
+          "nome": {
+            "path": "rows[*].nome"
+          },
+          "ponto_atendimento": {
+            "path": "rows[*].ponto_atendimento"
+          },
+          "hora_agendamento": {
+            "path": "rows[*].hora_agendamento"
+          },
+          "data_agendamento": {
+            "path": "rows[*].data_agendamento"
+          },
+          "dose": {
+            "path": "rows[*].dose"
+          }
+        }
+      },
+      "schedule": "never",
+      "keep_events_for": 0,
+      "propagate_immediately": true
+    },
+    {
+      "type": "Agents::EventFormattingAgent",
+      "name": "Tratar token e cookie",
+      "disabled": false,
+      "guid": "c83b68d41f1f059aeccaea2c1c2f763e",
+      "options": {
+        "instructions": {
+          "token": "{{token.token}}",
+          "cookie": "{{ headers.Set-Cookie | | regex_replace: '(path=\\/,)', ';'}}"
+        },
+        "matchers": [
+          {
+            "path": "{{ body }}",
+            "regexp": "(<input type=\"hidden\" name=\"_token\" value=\")(?<token>.*?)(\">)",
+            "to": "token"
+          }
+        ],
+        "mode": "clean"
+      },
+      "keep_events_for": 0,
+      "propagate_immediately": true
+    },
+    {
+      "type": "Agents::EventFormattingAgent",
+      "name": "formatar lista vacinas para bot",
+      "disabled": false,
+      "guid": "ccbafe24c2e1f8cc115e577e1657b3af",
+      "options": {
+        "instructions": {
+          "text": "Notificação Vacina {{dose}} {{nome}} {{ponto_atendimento}}  {{data_agendamento}} {{hora_agendamento}}"
+        },
+        "matchers": [
+
+        ],
+        "mode": "clean"
+      },
+      "keep_events_for": 0,
+      "propagate_immediately": true
+    },
+    {
+      "type": "Agents::TelegramAgent",
+      "name": "Notificação bot vacina",
+      "disabled": false,
+      "guid": "fa30b3c96a40a3ae7f9a44c3de5317d0",
+      "options": {
+        "auth_token": "TELEGRAM_BOT_TOKEN",
+        "chat_id": "TELEGRAM_BOT_CHAT_ID",
+        "caption": "",
+        "disable_notification": "",
+        "disable_web_page_preview": "",
+        "long_message": "split",
+        "parse_mode": ""
+      },
+      "propagate_immediately": true
+    }
+  ],
+  "links": [
+    {
+      "source": 0,
+      "receiver": 3
+    },
+    {
+      "source": 1,
+      "receiver": 2
+    },
+    {
+      "source": 2,
+      "receiver": 4
+    },
+    {
+      "source": 3,
+      "receiver": 1
+    },
+    {
+      "source": 4,
+      "receiver": 5
+    }
+  ],
+  "control_links": [
+
+  ]
+}
